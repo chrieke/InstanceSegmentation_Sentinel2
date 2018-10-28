@@ -2,7 +2,7 @@
 
 **Deep Learning for Instance Segmentation of Agricultural Fields - Master thesis**  
      
-![](images/fieldsPlanet.jpg)
+![](readme_images/fieldsPlanet.jpg)
      
 **Abstract**  
 This thesis aims to delineate agricultural field parcels from satellite images via deep learning 
@@ -23,6 +23,6 @@ crop class was predicted. Overall, the results are promising and prove the valid
 learning approach. Also, the methodology offers many directions for future improvement.                   
      
      
-![](images/results.jpg)
+![](readme_images/results.jpg)
      
 Code will be made available.
