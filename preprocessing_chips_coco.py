@@ -33,8 +33,8 @@ import scripts.preprocessing_helper as preproc_helper
 import pprint
 
 
-fp_s2 = Path('data\RGB_small_cor.tif')
-fp_fields = Path('data\marker_small.shp')
+fp_s2 = Path(r'data\original\RGB_small_cor.tif')
+fp_fields = Path(r'data\original\marker_small.shp')
 
 # #  Geometry Pre-processing Pipeline
 # Includes read/clean of geodataframe, clip to aoi, validify, reproject and clean geometries, reclassify labels.
@@ -64,7 +64,7 @@ def preprocess_vector(inpath, meta):
     return df
 
 
-df = cgeo.other.read_or_new_save(path=Path('output\preprocessed_marker_small.pkl'),
+df = cgeo.other.read_or_new_save(path=Path(r'data\output_preproc\preprocessed_marker_small.pkl'),
                                  default_data=preprocess_vector,
                                  callable_args={'inpath': fp_fields, 'meta': meta})
 
@@ -111,9 +111,9 @@ def cut_chips(img_path, df, chip_width, chip_height, bands):
 
         # # Export image chip.
         for folder in ['train2014', 'val2014']:
-            Path(rf'output\chips\{folder}').mkdir(parents=True, exist_ok=True)
+            Path(rf'data\output_preproc\chips\{folder}').mkdir(parents=True, exist_ok=True)
         chip_file_name = f'COCO_train2014_000000{100000+i}'  # _{clip_minX}_{clip_minY}_{clip_maxX}_{clip_maxY}'
-        with open(Path(rf'output\chips\train2014\{chip_file_name}.jpg'), 'w') as dst:
+        with open(Path(rf'data\output_preproc\chips\train2014\{chip_file_name}.jpg'), 'w') as dst:
             img_pil.save(dst, format='JPEG', subsampling=0, quality=100)
 
         # # Gather image statistics
@@ -126,7 +126,7 @@ def cut_chips(img_path, df, chip_width, chip_height, bands):
 
 chip_width, chip_height = 128, 128
 bands = [3, 2, 1]
-chips_stats = cgeo.other.read_or_new_save(path=Path('output\chips_geo_stats.pkl'),
+chips_stats = cgeo.other.read_or_new_save(path=Path(r'data\output_preproc\chips_geo_stats.pkl'),
                                           default_data=cut_chips,
                                           callable_args={'img_path': fp_s2,
                                                          'df': df,
@@ -156,8 +156,8 @@ def apply_split_coco(chips_train: List, chips_val: List) -> Tuple[Dict, Dict]:
 
     # Apply split to image chips: Move val chip images.
     for chip in chips_val:
-        destination = Path(r"output/chips/val2014/{}.jpg".format(chip.replace('train', 'val')))
-        Path(rf"output/chips/train2014/{chip}.jpg").replace(destination)
+        destination = Path(r"data\output_preproc\chips\val2014\{}.jpg".format(chip.replace('train', 'val')))
+        Path(rf"data\output_preproc\chips\train2014\{chip}.jpg").replace(destination)
 
     return stats_train, stats_val
 
@@ -211,8 +211,8 @@ def format_cocojson(set_: Dict):
     return cocojson
 
 
-outpath_cocojson_train = Path('output/chips/train2014.json')
-outpath_cocojson_val = Path('output/chips/val2014.json')
+outpath_cocojson_train = Path(r'data\output_preproc\chips\train2014.json')
+outpath_cocojson_val = Path(r'data\output_preproc\chips\val2014.json')
 
 if outpath_cocojson_train.exists() and outpath_cocojson_val.exists():
     cocojson_train = cgeo.other.read_saved(outpath_cocojson_train, file_format='json')
@@ -227,24 +227,24 @@ else:
 
 
 # # Gather chip statistics.
-statistics = {
-    'nr_chips': len(chips_stats.keys()),
-    'nr_chips_train': len(chips_train),
-    'nr_chips_val': len(chips_val),
-
-    'nr_polys': sum([len(df['chip_df']) for df in chips_stats.values()]),
-    'avg_polys_per_chip': sum([len(df['chip_df']) for df in chips_stats.values()]) / len(chips_stats.keys()),
-    'nr_polys_train': sum([len(df['chip_df']) for df in [chips_stats[key] for key in chips_train]]),
-    'nr_polys_val': sum([len(df['chip_df']) for df in [chips_stats[key] for key in chips_val]]),
-
-    'train_rgb_mean': list(np.asarray([df['mean'] for df in [chips_stats[key] for key in chips_train]]).mean(axis=0)),
-    'train_rgb_stdn': list(np.asarray([df['std'] for df in [chips_stats[key] for key in chips_train]]).mean(axis=0)),
-    # 'polys_classstats': afterchip_df.groupby(['reclass_lcsub']).object_id.aggregate(len).sort_values(ascending=False),
-    # 'polys_mean_sqm': afterchip_df.areasqm.mean(),
-    # 'polys_classareastats:': afterchip_df.groupby(['reclass_lcsub']).areasqm.mean(),
-}
-
-statistics = cgeo.other.read_or_new_save(path=Path('output/statistics.json'),
-                                         default_data=statistics,
-                                         file_format='json')
-pprint.pprint(statistics)
+# statistics = {
+#     'nr_chips': len(chips_stats.keys()),
+#     'nr_chips_train': len(chips_train),
+#     'nr_chips_val': len(chips_val),
+#
+#     'nr_polys': sum([len(df['chip_df']) for df in chips_stats.values()]),
+#     'avg_polys_per_chip': sum([len(df['chip_df']) for df in chips_stats.values()]) / len(chips_stats.keys()),
+#     'nr_polys_train': sum([len(df['chip_df']) for df in [chips_stats[key] for key in chips_train]]),
+#     'nr_polys_val': sum([len(df['chip_df']) for df in [chips_stats[key] for key in chips_val]]),
+#
+#     'train_rgb_mean': list(np.asarray([df['mean'] for df in [chips_stats[key] for key in chips_train]]).mean(axis=0)),
+#     'train_rgb_stdn': list(np.asarray([df['std'] for df in [chips_stats[key] for key in chips_train]]).mean(axis=0)),
+#     # 'polys_classstats': afterchip_df.groupby(['reclass_lcsub']).object_id.aggregate(len).sort_values(ascending=False),
+#     # 'polys_mean_sqm': afterchip_df.areasqm.mean(),
+#     # 'polys_classareastats:': afterchip_df.groupby(['reclass_lcsub']).areasqm.mean(),
+# }
+#
+# statistics = cgeo.other.read_or_new_save(path=Path(r'data\output_preproc\statistics.json'),
+#                                          default_data=statistics,
+#                                          file_format='json')
+# pprint.pprint(statistics)
