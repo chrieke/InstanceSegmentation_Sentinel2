@@ -20,9 +20,9 @@ from skimage import exposure, img_as_ubyte
 from tqdm import tqdm
 
 
-
-
-def get_chip_windows(meta_raster,
+def get_chip_windows(raster_width: int,
+                     raster_height: int,
+                     raster_transform,
                      chip_width: int=256,
                      chip_height: int=256,
                      skip_partial_chips: bool=False,
@@ -32,7 +32,9 @@ def get_chip_windows(meta_raster,
     Chips are created row wise, from top to bottom of the raster.
 
     Args:
-        meta_raster: rasterio src.meta or src.profile
+        raster_width: rasterio meta['width']
+        raster_height: rasterio meta['height']
+        raster_transform: rasterio meta['transform']
         chip_width: Desired pixel width.
         chip_height: Desired pixel height.
         skip_partial_chips: Skip image chips at the edge of the raster that do not result in a full size chip.
@@ -41,7 +43,6 @@ def get_chip_windows(meta_raster,
 
     """
 
-    raster_width, raster_height = meta_raster['width'], meta_raster['height']
     big_window = Window(col_off=0, row_off=0, width=raster_width, height=raster_height)
 
     col_row_offsets = itertools.product(range(0, raster_width, chip_width), range(0, raster_height, chip_height))
@@ -55,34 +56,47 @@ def get_chip_windows(meta_raster,
                 continue
 
         chip_window = chip_window.intersection(big_window)
-        chip_transform = rasterio.windows.transform(chip_window, meta_raster['transform'])
-        chip_bounds = rasterio.windows.bounds(chip_window, meta_raster['transform'])  # Uses transform of full raster.
+        chip_transform = rasterio.windows.transform(chip_window, raster_transform)
+        chip_bounds = rasterio.windows.bounds(chip_window, raster_transform)  # Uses transform of full raster.
         chip_poly = shapely.geometry.box(*chip_bounds, ccw=False)
 
-        yield (chip_window, chip_poly, chip_transform)
+        yield (chip_window, chip_transform, chip_poly)
 
 
-def cut_chips(img_path, df, chip_width=128, chip_height=128, bands=[3, 2, 1]):
-    """Workflow to cut & export image chips and geometries."""
-    chips_stats = {}
+def cut_chip_geometries(vector_df, raster_width, raster_height, raster_transform, chip_width=128, chip_height=128,):
+    """Workflow to cut a vector geodataframe to chip geometries.
 
-    src = rasterio.open(img_path)
-    generator_window_bounds = get_chip_windows(meta_raster=src.meta,
+    Filters small polygons and skips empty chips.
+
+    Args:
+        vector_df: Geodataframe containing the geometries to be cut to chip geometries.
+        raster_width: rasterio meta['width']
+        raster_height: rasterio meta['height']
+        raster_transform: rasterio meta['transform']
+        chip_width: Desired pixel width.
+        chip_height: Desired pixel height.
+
+    Returns: Dictionary containing the final chip_df, chip_window, chip_transform, chip_poly objects.
+    """
+
+    generator_window_bounds = get_chip_windows(raster_width=raster_width,
+                                               raster_height=raster_height,
+                                               raster_transform=raster_transform,
                                                chip_width=chip_width,
                                                chip_height=chip_height,
                                                skip_partial_chips=True)
 
-    for i, (chip_window, chip_poly, chip_transform) in enumerate(tqdm(generator_window_bounds)):
-        # if i % 100 == 0: print(i)
+    all_chip_dfs = {}
+    for i, (chip_window, chip_transform, chip_poly) in enumerate(tqdm(generator_window_bounds)):
 
         # # Clip geometry to chip
-        chip_df = df.pipe(utils.geo.clip, clip_poly=chip_poly, keep_biggest_poly_=True)
+        chip_df = vector_df.pipe(utils.geo.clip, clip_poly=chip_poly, keep_biggest_poly_=True)
         if not all(chip_df.geometry.is_empty):
             chip_df.geometry = chip_df.simplify(1, preserve_topology=True)
         else:
             continue
         # Drop small geometries
-        chip_df = chip_df[chip_df.geometry.area * (10 * 10) > 5000]
+        chip_df = chip_df[chip_df.geometry.area * (10 * 10) > 5000]  #5000 sqm in UTM
         # Transform to chip pixelcoordinates and invert y-axis for COCO format.
         if not all(chip_df.geometry.is_empty):
             chip_df = chip_df.pipe(utils.geo.to_pixelcoords, reference_bounds=chip_poly.bounds, scale=True,
@@ -91,7 +105,30 @@ def cut_chips(img_path, df, chip_width=128, chip_height=128, bands=[3, 2, 1]):
         else:
             continue
 
-        # # Clip image to chip
+        chip_name = f'COCO_train2016_000000{100000+i}'  # _{clip_minX}_{clip_minY}_{clip_maxX}_{clip_maxY}'
+        all_chip_dfs[chip_name] = {'chip_df': chip_df,
+                                   'chip_window': chip_window,
+                                   'chip_transform': chip_transform,
+                                   'chip_poly': chip_poly}
+    return all_chip_dfs
+
+
+def cut_chip_images(img_path, chip_windows, out_folder, bands=[3, 2, 1]):
+    """Cuts image chips and exports them
+
+    Args:
+        img_path:
+        chip_windows:
+        out_folder:
+        bands:
+
+    Returns:
+
+    """
+    src = rasterio.open(img_path)
+
+    all_chip_stats = {}
+    for i, chip_window in enumerate(chip_windows):
         img_array = np.dstack(list(src.read(bands, window=chip_window)))
         img_array = exposure.rescale_intensity(img_array, in_range=(0, 2200))  # Sentinel2 range.
         with warnings.catch_warnings():
@@ -99,16 +136,15 @@ def cut_chips(img_path, df, chip_width=128, chip_height=128, bands=[3, 2, 1]):
             img_array = img_as_ubyte(img_array)
         img_pil = pilimg.fromarray(img_array)
 
-        # # Export image chip.
-        for folder in ['train2016', 'val2016']:
-            Path(rf'output\preprocessed\image_chips\{folder}').mkdir(parents=True, exist_ok=True)
-        chip_file_name = f'COCO_train2016_000000{100000+i}'  # _{clip_minX}_{clip_minY}_{clip_maxX}_{clip_maxY}'
-        with open(Path(rf'output\preprocessed\image_chips\train2016\{chip_file_name}.jpg'), 'w') as dst:
+        # Export chip images
+        Path(out_folder).mkdir(parents=True, exist_ok=True)
+        chip_name = f'COCO_train2016_000000{100000+i}'  # _{clip_minX}_{clip_minY}_{clip_maxX}_{clip_maxY}'
+        with open(Path(rf'{out_folder}\{chip_name}.jpg'), 'w') as dst:
             img_pil.save(dst, format='JPEG', subsampling=0, quality=100)
 
-        # # Gather image statistics
-        chips_stats[chip_file_name] = {'chip_df': chip_df,
-                                       'mean': img_array.mean(axis=(0, 1)),
-                                       'std': img_array.std(axis=(0, 1))}
+        all_chip_stats[chip_name] = {'mean': img_array.mean(axis=(0, 1)),
+                                     'std': img_array.std(axis=(0, 1))}
+
     src.close()
-    return chips_stats
+
+    return all_chip_stats
