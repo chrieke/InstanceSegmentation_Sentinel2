@@ -6,30 +6,34 @@ import random
 import itertools
 
 from shapely.geometry import Polygon, MultiPolygon
-import utils.other
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.collections import PatchCollection
+from descartes import PolygonPatch
+from PIL import Image as pilimage
+
+import utils.other
 
 
-def train_test_split_coco(chips_stats: Dict) -> Tuple[List, List]:
-    chips_list = list(chips_stats.keys())
+def train_test_split(chip_dfs: Dict, test_size=0.2) -> Tuple[Dict, Dict]:
+    """Split chips into training and test set"""
+    chips_list = list(chip_dfs.keys())
     random.seed(1)
     random.shuffle(chips_list)
-    split_idx = round(len(chips_list) * 0.2)  # 80% train, 20% test.
+    split_idx = round(len(chips_list) * test_size)
     train_split = chips_list[split_idx:]
     val_split = chips_list[:split_idx]
 
-    # Apply split to geometries/stats.
-    train_chip_dfs = {k: chips_stats[k] for k in sorted(train_split)}
-    val_chip_dfs = {k.replace('train', 'val'): chips_stats[k] for k in sorted(val_split)}
+    train_chip_dfs = {k: chip_dfs[k] for k in sorted(train_split)}
+    val_chip_dfs = {k.replace('train', 'val'): chip_dfs[k] for k in sorted(val_split)}
 
     return train_chip_dfs, val_chip_dfs
 
 
-def format_coco(set_: Dict, chip_width: int, chip_height: int):
-    """
-    Format extracted chip geometries to COCO json format.
+def format_coco(chip_dfs: Dict, chip_width: int, chip_height: int):
+    """Format train and test chip geometries to COCO json format.
 
-    Coco train/val have specific ids, formatting requires the split data..
+    COCO train and val set have specific ids.
     """
     cocojson = {
         "info": {},
@@ -38,7 +42,7 @@ def format_coco(set_: Dict, chip_width: int, chip_height: int):
                         'id': 1,   # id needs to match category_id.
                         'name': 'agfields_singleclass'}]}
 
-    for key_idx, key in enumerate(set_.keys()):
+    for key_idx, key in enumerate(chip_dfs.keys()):
         if 'train' in key:
             chip_id = int(key[21:])
         elif 'val' in key:
@@ -50,16 +54,16 @@ def format_coco(set_: Dict, chip_width: int, chip_height: int):
                       "width": chip_height})
         cocojson.setdefault('images', []).append(key_image)
 
-        for row_idx, row in set_[key]['chip_df'].iterrows():
+        for row_idx, row in chip_dfs[key]['chip_df'].iterrows():
             # Convert geometry to COCO segmentation format:
             # From shapely POLYGON ((x y, x1 y2, ..)) to COCO [[x, y, x1, y1, ..]].
             # The annotations were encoded by RLE, except for crowd region (iscrowd=1)
             coco_xy = list(itertools.chain.from_iterable((x, y) for x, y in zip(*row.geometry.exterior.coords.xy)))
-            coco_xy = [round(xy, 2) for xy in coco_xy]
+            coco_xy = [round(coords, 2) for coords in coco_xy]
             # Add COCO bbox in format [minx, miny, width, height]
             bounds = row.geometry.bounds  # COCO bbox
             coco_bbox = [bounds[0], bounds[1], bounds[2] - bounds[0], bounds[3] - bounds[1]]
-            coco_bbox = [round(xy, 2) for xy in coco_bbox]
+            coco_bbox = [round(coords, 2) for coords in coco_bbox]
 
             key_annotation = {"id": key_idx,
                               "image_id": int(chip_id),
@@ -77,7 +81,12 @@ def format_coco(set_: Dict, chip_width: int, chip_height: int):
 
 
 def move_coco_val_images(val_chips_list, path_train_folder):
-    """Move val chip images to val folder, applies train/val split on images"""
+    """Move validation chip images to val folder (applies train/val split on images)
+
+    Args:
+        val_chips_list: List of validation image key names
+        path_train_folder: Filepath to the training COCO image chip "train" folder
+    """
     out_folder = path_train_folder.parent / 'val2016'
     Path(out_folder).mkdir(parents=True, exist_ok=True)
     for chip in val_chips_list:
@@ -86,8 +95,7 @@ def move_coco_val_images(val_chips_list, path_train_folder):
 
 def coco_to_shapely(fp_coco_json: Union[Path, str],
                     categories: List[int]=None) -> Dict:
-    """
-    Transforms coco json annotations to shapely format.
+    """Transforms COCO annotations to shapely geometry format.
 
     Args:
         fp_coco_json: Input filepath coco json file.
@@ -95,7 +103,7 @@ def coco_to_shapely(fp_coco_json: Union[Path, str],
         annotation of that category.
 
     Returns:
-        Dictionary of image key and shapely Multipolygon
+        Dictionary of image key and shapely Multipolygon.
     """
 
     data = utils.other.load_saved(fp_coco_json, file_format='json')
@@ -110,8 +118,9 @@ def coco_to_shapely(fp_coco_json: Union[Path, str],
     extracted_geometries = {}
     for image_id, file_name in zip(image_ids, file_names):
         annotations = [x for x in data['annotations'] if x['image_id'] == image_id]
-        # Filter to annotations of the selected category.
-        annotations = [x for x in annotations if x['category_id'] in categories]
+        if categories is not None:
+            annotations = [x for x in annotations if x['category_id'] in categories]
+
         segments = [segment['segmentation'][0] for segment in annotations]  # format [x,y,x1,y1,...]
 
         # Create shapely Multipolygons from COCO format polygons.
@@ -121,3 +130,19 @@ def coco_to_shapely(fp_coco_json: Union[Path, str],
     return extracted_geometries
 
 
+def plot_coco(in_json, chip_img_folder, start=0, end=2):
+    """Plot COCO annotations and image chips"""
+    extracted = utils.coco.coco_to_shapely(in_json)
+
+    for key in sorted(extracted.keys())[start:end]:
+        print(key)
+        plt.figure(figsize=(5, 5))
+        plt.axis('off')
+
+        img = np.asarray(pilimage.open(rf'{chip_img_folder}\{key}'))
+        plt.imshow(img, interpolation='none')
+
+        mp = extracted[key]
+        patches = [PolygonPatch(p, ec='r', fill=False, alpha=1, lw=0.7, zorder=1) for p in mp]
+        plt.gca().add_collection(PatchCollection(patches, match_original=True))
+        plt.show()

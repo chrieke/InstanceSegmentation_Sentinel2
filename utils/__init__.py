@@ -4,5 +4,4 @@ import utils.other
 import utils.geo
 import utils.img
 import utils.coco
-import utils.viz
 

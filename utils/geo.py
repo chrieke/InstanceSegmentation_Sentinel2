@@ -1,18 +1,18 @@
 # geo.py
 
 import warnings
-from typing import Union, Dict, Tuple, List
-import random
-import itertools
+from typing import Union, Dict
 
 import numpy as np
-import geopandas as gpd
 from geopandas import GeoDataFrame as GDF
 from pandas import DataFrame as DF
 import shapely
-from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry import Polygon
 import rasterio.crs
-from pathlib import Path
+import geopandas as gpd
+from tqdm import tqdm
+
+import utils.img
 
 
 def buffer_zero(in_geo: Union[GDF, Polygon]) -> Union[GDF, Polygon]:
@@ -52,6 +52,25 @@ def set_crs(df: GDF, epsg_code: Union[int, str]) -> GDF:
     """
     df.crs = {'init': f'epsg:{str(epsg_code)}'}
     return df
+
+
+def explode_mp(df: GDF) -> GDF:
+    """Explode all multi-polygon geometries in a geodataframe into individual polygon geometries.
+
+    Adds exploded polygons as rows at the end of the geodataframe and resets its index.
+    """
+    outdf = df[df.geom_type == 'Polygon']
+
+    df_mp = df[df.geom_type == 'MultiPolygon']
+    for idx, row in df_mp.iterrows():
+        df_temp = gpd.GeoDataFrame(columns=df_mp.columns)
+        df_temp = df_temp.append([row] * len(row.geometry), ignore_index=True)
+        for i in range(len(row.geometry)):
+            df_temp.loc[i, 'geometry'] = row.geometry[i]
+        outdf = outdf.append(df_temp, ignore_index=True)
+
+    outdf.reset_index(drop=True, inplace=True)
+    return outdf
 
 
 def clip(df: GDF,
@@ -102,7 +121,7 @@ def reclassify_col(df: Union[GDF, DF],
                    ) -> Union[GDF, DF]:
     """Reclassify class label and class ids in a dataframe column.
 
-    # TODO: Make more efficient!
+    # TODO: Simplify & make more efficient!
     Args:
         df: input geodataframe.
         rcl_scheme: Reclassification scheme, e.g. {'springcereal': [1,2,3], 'wintercereal': [10,11]}
@@ -126,6 +145,7 @@ def reclassify_col(df: Union[GDF, DF],
 
     df[f'rcl_{col_classlabels}'] = df[col_classids].copy().map(rcl_dict)  # map name first, id second!
     df[f'rcl_{col_classids}'] = df[col_classids].map(rcl_dict_id)
+
     return df
 
 
@@ -251,3 +271,53 @@ def invert_y_axis(ingeo: Union[Polygon, GDF],
     elif isinstance(ingeo, GDF):
         ingeo.geometry = ingeo.geometry.apply(lambda _p: _invert_y_axis(poly=_p, reference_height=reference_height))
         return ingeo
+
+
+def cut_chip_geometries(vector_df, raster_width, raster_height, raster_transform, chip_width=128, chip_height=128,):
+    """Workflow to cut a vector geodataframe to chip geometries.
+
+    Filters small polygons and skips empty chips.
+
+    Args:
+        vector_df: Geodataframe containing the geometries to be cut to chip geometries.
+        raster_width: rasterio meta['width']
+        raster_height: rasterio meta['height']
+        raster_transform: rasterio meta['transform']
+        chip_width: Desired pixel width.
+        chip_height: Desired pixel height.
+
+    Returns: Dictionary containing the final chip_df, chip_window, chip_transform, chip_poly objects.
+    """
+
+    generator_window_bounds = utils.img.get_chip_windows(raster_width=raster_width,
+                                                         raster_height=raster_height,
+                                                         raster_transform=raster_transform,
+                                                         chip_width=chip_width,
+                                                         chip_height=chip_height,
+                                                         skip_partial_chips=True)
+
+    all_chip_dfs = {}
+    for i, (chip_window, chip_transform, chip_poly) in enumerate(tqdm(generator_window_bounds)):
+
+        # # Clip geometry to chip
+        chip_df = vector_df.pipe(utils.geo.clip, clip_poly=chip_poly, keep_biggest_poly_=True)
+        if not all(chip_df.geometry.is_empty):
+            chip_df.geometry = chip_df.simplify(1, preserve_topology=True)
+        else:
+            continue
+        # Drop small geometries
+        chip_df = chip_df[chip_df.geometry.area * (10 * 10) > 5000]  #5000 sqm in UTM
+        # Transform to chip pixelcoordinates and invert y-axis for COCO format.
+        if not all(chip_df.geometry.is_empty):
+            chip_df = chip_df.pipe(utils.geo.to_pixelcoords, reference_bounds=chip_poly.bounds, scale=True,
+                                   ncols=chip_width, nrows=chip_height)
+            chip_df = chip_df.pipe(invert_y_axis, reference_height=chip_height)
+        else:
+            continue
+
+        chip_name = f'COCO_train2016_000000{100000+i}'  # _{clip_minX}_{clip_minY}_{clip_maxX}_{clip_maxY}'
+        all_chip_dfs[chip_name] = {'chip_df': chip_df,
+                                   'chip_window': chip_window,
+                                   'chip_transform': chip_transform,
+                                   'chip_poly': chip_poly}
+    return all_chip_dfs

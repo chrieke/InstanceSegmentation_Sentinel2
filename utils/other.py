@@ -1,6 +1,6 @@
 # other.py
 
-from typing import Union, Any, Callable, Tuple, Dict, Iterable, List
+from typing import Union, Any, Callable, Dict
 from pathlib import Path
 import pickle
 
@@ -40,7 +40,7 @@ def load_or_new_save(path: Path,
     """Write data to new pickle/json file or load pickle/json if that file already exists.
 
     Example:
-        df = cgeo.other.load_or_new_save(path=Path('output\preprocessed_marker_small.pkl'),
+        df = utils.other.load_or_new_save(path=Path('output\preprocessed_marker_small.pkl'),
                                          default_data=preprocess_vector,
                                          callable_args={'inpath': fp_fields, 'meta': meta})
     Args:
