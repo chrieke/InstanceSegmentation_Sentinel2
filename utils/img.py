@@ -62,11 +62,12 @@ def get_chip_windows(raster_width: int,
         yield (chip_window, chip_transform, chip_poly)
 
 
-def cut_chip_images(img_path, chip_windows, out_folder, bands=[3, 2, 1]):
+def cut_chip_images(img_path, chip_names, chip_windows, out_folder, bands=[3, 2, 1]):
     """Cuts image chips and exports them
 
     Args:
         img_path:
+        chip_names:
         chip_windows:
         out_folder:
         bands:
@@ -77,7 +78,7 @@ def cut_chip_images(img_path, chip_windows, out_folder, bands=[3, 2, 1]):
     src = rasterio.open(img_path)
 
     all_chip_stats = {}
-    for i, chip_window in enumerate(tqdm(chip_windows)):
+    for chip_name, chip_window in tqdm(zip(chip_names, chip_windows)):
         img_array = np.dstack(list(src.read(bands, window=chip_window)))
         img_array = exposure.rescale_intensity(img_array, in_range=(0, 2200))  # Sentinel2 range.
         with warnings.catch_warnings():
@@ -87,7 +88,7 @@ def cut_chip_images(img_path, chip_windows, out_folder, bands=[3, 2, 1]):
 
         # Export chip images
         Path(out_folder).mkdir(parents=True, exist_ok=True)
-        chip_name = f'COCO_train2016_000000{100000+i}'  # _{clip_minX}_{clip_minY}_{clip_maxX}_{clip_maxY}'
+        #chip_name = f'COCO_train2016_000000{100000+i}'  # _{clip_minX}_{clip_minY}_{clip_maxX}_{clip_maxY}'
         with open(Path(rf'{out_folder}\{chip_name}.jpg'), 'w') as dst:
             img_pil.save(dst, format='JPEG', subsampling=0, quality=100)
 

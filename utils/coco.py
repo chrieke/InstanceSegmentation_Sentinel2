@@ -15,10 +15,10 @@ from PIL import Image as pilimage
 import utils.other
 
 
-def train_test_split(chip_dfs: Dict, test_size=0.2) -> Tuple[Dict, Dict]:
+def train_test_split(chip_dfs: Dict, test_size=0.2, seed=1) -> Tuple[Dict, Dict]:
     """Split chips into training and test set"""
     chips_list = list(chip_dfs.keys())
-    random.seed(1)
+    random.seed(seed)
     random.shuffle(chips_list)
     split_idx = round(len(chips_list) * test_size)
     train_split = chips_list[split_idx:]
@@ -69,8 +69,8 @@ def format_coco(chip_dfs: Dict, chip_width: int, chip_height: int):
                               "image_id": int(chip_id),
                               "category_id": 1,  # with multiple classes use "category_id" : row.reclass_id
                               "mycategory_name": 'agfields_singleclass',
-                              "old_multiclass_category_name": row['rcl_lc_name'],
-                              "old_multiclass_category_id": row['rcl_lc_id'],
+                              "old_multiclass_category_name": row['r_lc_name'],
+                              "old_multiclass_category_id": row['r_lc_id'],
                               "bbox": coco_bbox,
                               "area": row.geometry.area,
                               "iscrowd": 0,
@@ -106,7 +106,7 @@ def coco_to_shapely(fp_coco_json: Union[Path, str],
         Dictionary of image key and shapely Multipolygon.
     """
 
-    data = utils.other.load_saved(fp_coco_json, file_format='json')
+    data = utils.other.load_json(fp_coco_json)
     if categories is not None:
         # Get image ids/file names that contain at least one annotation of the selected categories.
         image_ids = list(set([x['image_id'] for x in data['annotations'] if x['category_id'] in categories]))

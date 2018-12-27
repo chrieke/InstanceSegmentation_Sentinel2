@@ -7,32 +7,35 @@ import pickle
 import json
 
 
-def new_save(out_path: Path, data, file_format: str='pickle'):
-    """(Over)write data to new pickle/json file."""
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    if file_format == 'pickle':
-        with open(out_path, "wb") as f:
-            pickle.dump(data, f)
-    elif file_format == 'json':
-        with open(out_path, "w") as f:
-            json.dump(data, f, indent=4)
-    print(f'Writing new {file_format} file... {out_path.name}')
+def new_pickle(out_fp: Path, data):
+    """(Over)write data to new pickle file."""
+    out_fp.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_fp, "wb") as f:
+        pickle.dump(data, f)
+    print(f'Writing new pickle file... {out_fp.name}')
 
 
-def load_saved(in_path: Path, file_format: str='pickle'):
-    """Load saved pickle/json file."""
-
-    if file_format == 'pickle':
-        with open(in_path, "rb") as f:
-            data = pickle.load(f)
-    elif file_format == 'json':
-        with open(in_path, "r") as f:
-            data = json.load(f)
-    print(f'Loading from {file_format} file... {in_path.name}')
-    return data
+def load_pickle(in_fp: Path):
+    print(f'Loading from pickle file... {in_fp.name}')
+    with open(in_fp, "rb") as f:
+        return pickle.load(f)
 
 
-def load_or_new_save(path: Path,
+def new_json(out_fp: Path, data):
+    """(Over)write data to new pickle file."""
+    out_fp.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_fp, "w") as f:
+        json.dump(data, f, indent=4)
+    print(f'Writing new json file... {out_fp.name}')
+
+
+def load_json(in_fp: Path):
+    print(f'Loading from json file... {in_fp.name}')
+    with open(in_fp, "r") as f:
+        return json.load(f)
+
+
+def load_or_new_save(fp: Path,
                      default_data: Union[Callable, Any],
                      callable_args: Dict=None,
                      file_format: str='pickle'
@@ -40,11 +43,11 @@ def load_or_new_save(path: Path,
     """Write data to new pickle/json file or load pickle/json if that file already exists.
 
     Example:
-        df = utils.other.load_or_new_save(path=Path('output\preprocessed_marker_small.pkl'),
+        df = cgeo.other.load_or_new_save(fp=Path('output\preprocessed_marker_small.pkl'),
                                          default_data=preprocess_vector,
-                                         callable_args={'inpath': fp_fields, 'meta': meta})
+                                         callable_args={'infp': fp_fields, 'meta': meta})
     Args:
-        path: in/output pickle/json file path.
+        fp: in/output pickle/json file fp.
         file_format: Either 'pickle' or 'json'.
         default_data: Data that is written to a pickle/json file if the pickle/json does not already exist.
             When giving a function, do not call the function, only give the function
@@ -54,12 +57,7 @@ def load_or_new_save(path: Path,
     Returns:
         Contents of the loaded or newly created pickle/json file.
     """
-    try:
-        if file_format == 'pickle':
-            data = load_saved(path, file_format=file_format)
-        elif file_format == 'json':
-            data = load_saved(path, file_format=file_format)
-    except (FileNotFoundError, OSError, IOError, EOFError):
+    if not fp.exists():
         if not callable(default_data):
             data = default_data
         else:
@@ -68,8 +66,12 @@ def load_or_new_save(path: Path,
             else:
                 data = default_data(**callable_args)
         if file_format == 'pickle':
-            new_save(out_path=path, data=data, file_format=file_format)
+            new_pickle(out_fp=fp, data=data)
         elif file_format == 'json':
-            new_save(out_path=path, data=data, file_format=file_format)
-
+            new_json(out_fp=fp, data=data)
+    else:
+        if file_format == 'pickle':
+            data = load_pickle(fp)
+        elif file_format == 'json':
+            data = load_json(fp)
     return data

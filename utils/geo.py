@@ -143,8 +143,8 @@ def reclassify_col(df: Union[GDF, DF],
             rcl_dict[v] = key
             rcl_dict_id[v] = i
 
-    df[f'rcl_{col_classlabels}'] = df[col_classids].copy().map(rcl_dict)  # map name first, id second!
-    df[f'rcl_{col_classids}'] = df[col_classids].map(rcl_dict_id)
+    df[f'r_{col_classlabels}'] = df[col_classids].copy().map(rcl_dict)  # map name first, id second!
+    df[f'r_{col_classids}'] = df[col_classids].map(rcl_dict_id)
 
     return df
 
