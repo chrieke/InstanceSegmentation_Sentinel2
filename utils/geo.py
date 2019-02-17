@@ -15,22 +15,22 @@ from tqdm import tqdm
 import utils.img
 
 
-def buffer_zero(in_geo: Union[GDF, Polygon]) -> Union[GDF, Polygon]:
+def buffer_zero(ingeo: Union[GDF, Polygon]) -> Union[GDF, Polygon]:
     """Make invalid polygons (due to self-intersection) valid by buffering with 0."""
-    if isinstance(in_geo, Polygon):
-        if in_geo.is_valid is False:
-            return in_geo.buffer(0)
+    if isinstance(ingeo, Polygon):
+        if ingeo.is_valid is False:
+            return ingeo.buffer(0)
         else:
-            return in_geo
-    elif isinstance(in_geo, GDF):
-        if False in in_geo.geometry.is_valid.unique():
-            in_geo.geometry = in_geo.geometry.apply(lambda _p: _p.buffer(0))
-            return in_geo
+            return ingeo
+    elif isinstance(ingeo, GDF):
+        if False in ingeo.geometry.is_valid.unique():
+            ingeo.geometry = ingeo.geometry.apply(lambda _p: _p.buffer(0))
+            return ingeo
         else:
-            return in_geo
+            return ingeo
 
 
-def close_holes(in_geo: Union[GDF, Polygon]) -> Union[GDF, Polygon]:
+def close_holes(ingeo: Union[GDF, Polygon]) -> Union[GDF, Polygon]:
     """Close polygon holes by limitation to the exterior ring."""
     def _close_holes(poly: Polygon):
         if poly.interiors:
@@ -38,11 +38,11 @@ def close_holes(in_geo: Union[GDF, Polygon]) -> Union[GDF, Polygon]:
         else:
             return poly
 
-    if isinstance(in_geo, Polygon):
-        return _close_holes(in_geo)
-    elif isinstance(in_geo, GDF):
-        in_geo.geometry = in_geo.geometry.apply(lambda _p: _close_holes(_p))
-        return in_geo
+    if isinstance(ingeo, Polygon):
+        return _close_holes(ingeo)
+    elif isinstance(ingeo, GDF):
+        ingeo.geometry = ingeo.geometry.apply(lambda _p: _close_holes(_p))
+        return ingeo
 
 
 def set_crs(df: GDF, epsg_code: Union[int, str]) -> GDF:

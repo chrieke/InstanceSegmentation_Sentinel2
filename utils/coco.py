@@ -80,25 +80,25 @@ def format_coco(chip_dfs: Dict, chip_width: int, chip_height: int):
     return cocojson
 
 
-def move_coco_val_images(val_chips_list, path_train_folder):
+def move_coco_val_images(inpath_train_folder, val_chips_list):
     """Move validation chip images to val folder (applies train/val split on images)
 
     Args:
-        val_chips_list: List of validation image key names
-        path_train_folder: Filepath to the training COCO image chip "train" folder
+        inpath_train_folder: Filepath to the training COCO image chip "train" folder
+        val_chips_list: List of validation image key names that should be moved.
     """
-    out_folder = path_train_folder.parent / 'val2016'
-    Path(out_folder).mkdir(parents=True, exist_ok=True)
+    outpath_val_folder = inpath_train_folder.parent / 'val2016'
+    Path(outpath_val_folder).mkdir(parents=True, exist_ok=True)
     for chip in val_chips_list:
-        Path(rf'{path_train_folder}\{chip.replace("val", "train")}.jpg').replace(rf'{out_folder}\{chip}.jpg')
+        Path(rf'{inpath_train_folder}\{chip.replace("val", "train")}.jpg').replace(rf'{outpath_val_folder}\{chip}.jpg')
 
 
-def coco_to_shapely(fp_coco_json: Union[Path, str],
+def coco_to_shapely(inpath_json: Union[Path, str],
                     categories: List[int]=None) -> Dict:
     """Transforms COCO annotations to shapely geometry format.
 
     Args:
-        fp_coco_json: Input filepath coco json file.
+        inpath_json: Input filepath coco json file.
         categories: Categories will filter to specific categories and images that contain at least one
         annotation of that category.
 
@@ -106,7 +106,7 @@ def coco_to_shapely(fp_coco_json: Union[Path, str],
         Dictionary of image key and shapely Multipolygon.
     """
 
-    data = utils.other.load_json(fp_coco_json)
+    data = utils.other.load_json(inpath_json)
     if categories is not None:
         # Get image ids/file names that contain at least one annotation of the selected categories.
         image_ids = list(set([x['image_id'] for x in data['annotations'] if x['category_id'] in categories]))
@@ -130,16 +130,16 @@ def coco_to_shapely(fp_coco_json: Union[Path, str],
     return extracted_geometries
 
 
-def plot_coco(in_json, chip_img_folder, start=0, end=2):
+def plot_coco(inpath_json, inpath_image_folder, start=0, end=2):
     """Plot COCO annotations and image chips"""
-    extracted = utils.coco.coco_to_shapely(in_json)
+    extracted = utils.coco.coco_to_shapely(inpath_json)
 
     for key in sorted(extracted.keys())[start:end]:
         print(key)
         plt.figure(figsize=(5, 5))
         plt.axis('off')
 
-        img = np.asarray(pilimage.open(rf'{chip_img_folder}\{key}'))
+        img = np.asarray(pilimage.open(rf'{inpath_image_folder}\{key}'))
         plt.imshow(img, interpolation='none')
 
         mp = extracted[key]
