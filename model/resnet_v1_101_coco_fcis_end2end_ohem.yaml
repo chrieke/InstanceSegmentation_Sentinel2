@@ -16,7 +16,7 @@ network:
   pretrained: "/home/ubuntu/FCIS/output/fcis/coco/resnet_v1_101_coco_fcis_end2end_ohem/train2014/e2e" #"./model/pretrained_model/resnet_v1_101"
   pretrained_epoch: 0
   PIXEL_MEANS:
-  - 91.55 #NIR: 228.20364404   90.90891869  106.77869353   #RGB: 91.54788333  107.21057029  116.17374499
+  - 91.55
   - 107.21
   - 116.17 
   IMAGE_STRIDE: 0
