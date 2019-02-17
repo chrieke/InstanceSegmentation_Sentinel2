@@ -20,55 +20,64 @@ crop class was predicted. Overall, the results are promising and prove the valid
 learning approach. Also, the methodology offers many directions for future improvement.
 
 <p align="center">
-  <img width="400" src="figures/train_predict.jpg">
+  <img width="800" src="figures/train_predict.jpg">
 </p>
 
 ## Results
 
 <p align="center">
-  <img width="500" src="figures/results.jpg">
+  <img width="1000" src="figures/results.jpg">
 </p>
 <p align="center">
-  <img width="300" src="figures/results_table.jpg">
+  <img width="500" src="figures/results_table.jpg">
 </p>
 
 ## Instructions
     
-###1. Installation FCIS & MXNet
-Install the FCIS model and MXNet framework according to the instructions in the [FCIS repository](https://github.com/msracver/FCIS). The setup works well with an AWS EC2 P2 instance and the official AWS Deep Learning AMI (Ubuntu). Make sure that the installations were successfull by running the FCIS demo: 
-```shell
-python FCIS/fcis/demo.py
+### 1. Installation FCIS & MXNet
+Install the FCIS model and MXNet framework according to the instructions in the [FCIS repository](https://github.com/msracver/FCIS). The setup works well with an AWS EC2 P2 instance and the official AWS Deep Learning AMI (Ubuntu). Make sure that the installations were successfull by running the FCIS demo:
+
+```shell 
+> python FCIS/fcis/demo.py
 ```
 
-###2. Data Preprocessing
-Follow the instructions and run the code in the *preprocessing* Jupyter notebook. This will prepare the Denmark LPIS field data and create the image chips and COCO format annotations. When finished, place the preprocessed vector folder *.output/preprocessing/annotations* and image folder *.output/preprocessing/images* in *.FCIS/data/coco*.
-![](figures/preprocessing_demo.jpg)    
-    
-###3. Configuration
-Place the configuration file *.model/resnet_v1_101_coco_fcis_end2end_ohem.yaml* in *.FCIS/experiments/fcis/cfgs*. A more detailed description of the model and training parameters used for the thesis is given in chapter 3.3. Then delete the annotations cache (neccessary each time you change a configuration parameter that could influence the model evaluation or training):    
-```shell
-rm -rf .FCIS/data/coco/annotations_cache/; rm -rf .FCIS/data/cache/COCOMask/  
+### 2. Data Preprocessing
+Follow the instructions and run the code in the *preprocessing* Jupyter notebook. This will prepare the Denmark LPIS field data and create the image chips and COCO format annotations. When finished, place the preprocessed vector folder `.output/preprocessing/annotations` and image folder `.output/preprocessing/images` in `.FCIS/data/coco`.
+
+<p align="center">
+  <img width="1000" src="figures/preprocessing_demo.jpg">
+</p>
+     
+### 3. Configuration
+Place the configuration file `.model/resnet_v1_101_coco_fcis_end2end_ohem.yaml` in `.FCIS/experiments/fcis/cfgs`. A more detailed description of the model and training parameters used for the thesis is given in thesis chapter 3.3. Then delete the annotations cache (neccessary each time you change a configuration parameter that could influence the model evaluation or training):
+
+```shell 
+> rm -rf .FCIS/data/coco/annotations_cache/; rm -rf .FCIS/data/cache/COCOMask/  
 ```
     
-###4. Model Evaluation   
-Runs the prediction/model evaluation task via the model trained in the thesis. First move the folder containing the model *.model/resnet_v1_101_coco_fcis_end2end_ohem* to *FCIS/output/fcis/coco/resnet_v1_101_coco_fcis_end2end_ohem*. Then run the evaluation:
-```shell
-python experiments/fcis/fcis_end2end_test.py --cfg experiments/fcis/cfgs/resnet_v1_101_coco_fcis_end2end_ohem.yaml --ignore_cache
-``` 
+### 4. Model Evaluation   
+Runs the prediction/model evaluation task via the model trained in the thesis. First move the folder containing the model `.model/resnet_v1_101_coco_fcis_end2end_ohem` to `FCIS/output/fcis/coco/resnet_v1_101_coco_fcis_end2end_ohem`. Then run the evaluation:
 
-The resulting instance segmentation and object detection proposals will be saved to *FCIS/output/fcis/coco/resnet_v1_101_coco_fcis_end2end_ohem/val2016/detections_val2016_results.json*.   
+```shell 
+> python experiments/fcis/fcis_end2end_test.py --cfg experiments/fcis/cfgs/resnet_v1_101_coco_fcis_end2end_ohem.yaml --ignore_cache
+```
+
+The resulting instance segmentation and object detection proposals will be saved to `FCIS/output/fcis/coco/resnet_v1_101_coco_fcis_end2end_ohem/val2016/detections_val2016_results.json`.   
     
 ### 5. Custom Model Training 
 You can carry out your own model training with custom configurations or datasets. 
     
-First adjust the *PIXEL_MEANS* values in the configuration file to the RGB channels means of your dataset (The band means are saved to *.output/preprocessed/statistics.json* during the preprocessing).    
+First adjust the *PIXEL_MEANS* values in the configuration file to the RGB channels means of your dataset (The band means are saved to `.output/preprocessed/statistics.json` during the preprocessing).    
    
-Delete existing model files:     
-```shell
-rm -rf /home/ubuntu/FCIS/output/fcis/coco/resnet_v1_101_coco_fcis_end2end_ohem/
-```   
+Delete existing model files:
+
+```shell 
+> rm -rf /home/ubuntu/FCIS/output/fcis/coco/resnet_v1_101_coco_fcis_end2end_ohem/
+```
+
 Finally, run the training task:     
-```shell
-python experiments/fcis/fcis_end2end_train_test.py --cfg experiments/fcis/cfgs/resnet_v1_101_coco_fcis_end2end_ohem.yaml
+
+```shell 
+> python experiments/fcis/fcis_end2end_train_test.py --cfg experiments/fcis/cfgs/resnet_v1_101_coco_fcis_end2end_ohem.yaml
 ```
 
