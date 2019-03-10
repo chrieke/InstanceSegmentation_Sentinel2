@@ -1,6 +1,9 @@
 # Deep Learning for Instance Segmentation of Agricultural Fields - Master thesis
 
-![](figures/fieldsPlanet.jpg)
+<p align="center">
+  <img width="800" src="figures/fieldsPlanet.jpg">
+</p>
+
 ## Abstract
 This thesis aims to delineate agricultural field parcels from satellite images via deep learning 
 instance segmentation. Manual delineation is accurate but time consuming, and many 
@@ -26,7 +29,7 @@ learning approach. Also, the methodology offers many directions for future impro
 ## Results
 
 <p align="center">
-  <img width="850" src="figures/results.jpg">
+  <img width="800" src="figures/results.jpg">
 </p>
 <p align="center">
   <img width="550" src="figures/results_table.jpg">
@@ -45,7 +48,7 @@ Install the FCIS model and MXNet framework according to the instructions in the 
 Follow the instructions and run the code in the [Preprocessing Jupyter notebook](https://github.com/chrieke/InstanceSegmentation_Sentinel2/blob/master/preprocessing.ipynb). This will prepare the Denmark LPIS field data and create the image chips and COCO format annotations. When finished, place the preprocessed vector folder `.output/preprocessing/annotations` and image folder `.output/preprocessing/images` in `.FCIS/data/coco`.
 
 <p align="center">
-  <img width="1000" src="figures/preprocessing_demo.jpg">
+  <img width="800" src="figures/preprocessing_demo.jpg">
 </p>
      
 ### 3. Configuration
