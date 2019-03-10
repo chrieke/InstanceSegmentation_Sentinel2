@@ -20,16 +20,16 @@ crop class was predicted. Overall, the results are promising and prove the valid
 learning approach. Also, the methodology offers many directions for future improvement.
 
 <p align="center">
-  <img width="800" src="figures/train_predict.jpg">
+  <img width="650" src="figures/train_predict.jpg">
 </p>
 
 ## Results
 
 <p align="center">
-  <img width="1000" src="figures/results.jpg">
+  <img width="950" src="figures/results.jpg">
 </p>
 <p align="center">
-  <img width="500" src="figures/results_table.jpg">
+  <img width="550" src="figures/results_table.jpg">
 </p>
 
 ## Instructions
@@ -42,7 +42,7 @@ Install the FCIS model and MXNet framework according to the instructions in the 
 ```
 
 ### 2. Data Preprocessing
-Follow the instructions and run the code in the *preprocessing* Jupyter notebook. This will prepare the Denmark LPIS field data and create the image chips and COCO format annotations. When finished, place the preprocessed vector folder `.output/preprocessing/annotations` and image folder `.output/preprocessing/images` in `.FCIS/data/coco`.
+Follow the instructions and run the code in the [Preprocessing Jupyter notebook](https://github.com/chrieke/InstanceSegmentation_Sentinel2/blob/master/preprocessing.ipynb). This will prepare the Denmark LPIS field data and create the image chips and COCO format annotations. When finished, place the preprocessed vector folder `.output/preprocessing/annotations` and image folder `.output/preprocessing/images` in `.FCIS/data/coco`.
 
 <p align="center">
   <img width="1000" src="figures/preprocessing_demo.jpg">
