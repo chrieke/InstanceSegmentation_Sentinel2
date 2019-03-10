@@ -26,7 +26,7 @@ learning approach. Also, the methodology offers many directions for future impro
 ## Results
 
 <p align="center">
-  <img width="950" src="figures/results.jpg">
+  <img width="850" src="figures/results.jpg">
 </p>
 <p align="center">
   <img width="550" src="figures/results_table.jpg">
