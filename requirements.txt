@@ -1,0 +1,16 @@
+rasterio==1.0.21
+tqdm==4.31.1
+pandas==0.24.2
+scikit_image==0.14.2
+affine==2.2.2
+descartes==1.1.0
+matplotlib==3.0.3
+Shapely==1.6.4.post2
+numpy==1.16.2
+geopandas==0.4.1
+Pillow==6.0.0
+easydict==1.9
+mxnet==1.4.1
+skimage==0.0
+typing==3.6.6
+PyYAML==5.1
