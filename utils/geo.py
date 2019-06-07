@@ -73,6 +73,17 @@ def explode_mp(df: GDF) -> GDF:
     return outdf
 
 
+def keep_biggest_poly(df: GDF) -> GDF:
+    """Replaces MultiPolygons with the biggest polygon contained in the MultiPolygon."""
+    row_idxs_mp = df.index[df.geometry.geom_type == 'MultiPolygon'].tolist()
+    for idx in row_idxs_mp:
+        mp = df.loc[idx].geometry
+        poly_areas = [p.area for p in mp]
+        max_area_poly = mp[poly_areas.index(max(poly_areas))]
+        df.loc[idx, 'geometry'] = max_area_poly
+    return df
+
+
 def clip(df: GDF,
          clip_poly: Polygon,
          explode_mp_: bool = False,
@@ -87,8 +98,8 @@ def clip(df: GDF,
         clip_poly: Clipping polygon geometry, needs to be in the same crs as the input geodataframe.
         explode_mp_: Applies explode_mp function. Append dataframe rows for each polygon in potential
             multipolygons that were created by the intersection. Resets the dataframe index!
-        keep_biggest_poly_: Applies keep_biggest_poly function. Drops Multipolygons by only keeping the Polygon with
-            the biggest area.
+        keep_biggest_poly_: Applies keep_biggest_poly function. Replaces MultiPolygons with the biggest
+        polygon contained in the MultiPolygon.
 
     Returns:
         Result geodataframe.
@@ -106,7 +117,7 @@ def clip(df: GDF,
                       f"explode_mp_=True or keep_biggest_poly_=True.")
         return df
     elif explode_mp_ and keep_biggest_poly_:
-        raise ValueError('You can only use only "explode_mp" or "keep_biggest"!')
+        raise ValueError('You can only use one of "explode_mp_" or "keep_biggest_poly_"!')
     elif explode_mp_:
         return explode_mp(df)
     elif keep_biggest_poly_:
@@ -273,7 +284,7 @@ def invert_y_axis(ingeo: Union[Polygon, GDF],
         return ingeo
 
 
-def cut_chip_geometries(vector_df, raster_width, raster_height, raster_transform, chip_width=128, chip_height=128,):
+def cut_chip_geometries(vector_df, raster_width, raster_height, raster_transform, chip_width=128, chip_height=128, first_n_chips=None):
     """Workflow to cut a vector geodataframe to chip geometries.
 
     Filters small polygons and skips empty chips.
@@ -285,6 +296,7 @@ def cut_chip_geometries(vector_df, raster_width, raster_height, raster_transform
         raster_transform: rasterio meta['transform']
         chip_width: Desired pixel width.
         chip_height: Desired pixel height.
+        first_n_chips: Only processes the first n image chips, used for debugging.
 
     Returns: Dictionary containing the final chip_df, chip_window, chip_transform, chip_poly objects.
     """
@@ -298,6 +310,8 @@ def cut_chip_geometries(vector_df, raster_width, raster_height, raster_transform
 
     all_chip_dfs = {}
     for i, (chip_window, chip_transform, chip_poly) in enumerate(tqdm(generator_window_bounds)):
+        if i >= first_n_chips:
+            break
 
         # # Clip geometry to chip
         chip_df = vector_df.pipe(utils.geo.clip, clip_poly=chip_poly, keep_biggest_poly_=True)
