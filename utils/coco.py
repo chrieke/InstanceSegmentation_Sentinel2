@@ -109,9 +109,9 @@ def coco_to_shapely(inpath_json: Union[Path, str],
     data = utils.other.load_json(inpath_json)
     if categories is not None:
         # Get image ids/file names that contain at least one annotation of the selected categories.
-        image_ids = list(set([x['image_id'] for x in data['annotations'] if x['category_id'] in categories]))
+        image_ids = sorted(list(set([x['image_id'] for x in data['annotations'] if x['category_id'] in categories])))
     else:
-        image_ids = list(set([x['image_id'] for x in data['annotations']]))
+        image_ids = sorted(list(set([x['image_id'] for x in data['annotations']])))
     file_names = [x['file_name'] for x in data['images'] if x['id'] in image_ids]
 
     # Extract selected annotations per image.
