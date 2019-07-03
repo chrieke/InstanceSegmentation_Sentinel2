@@ -16,7 +16,14 @@ import utils.other
 
 
 def train_test_split(chip_dfs: Dict, test_size=0.2, seed=1) -> Tuple[Dict, Dict]:
-    """Split chips into training and test set"""
+    """Split chips into training and test set.
+
+    Args:
+        chip_dfs: Dictionary containing key (filename of the chip) value (dataframe with
+            geometries for that chip) pairs.
+        test_size: Relative number of chips to be put in the test dataset. 1-test_size is the size of the
+        training data set.
+    """
     chips_list = list(chip_dfs.keys())
     random.seed(seed)
     random.shuffle(chips_list)
@@ -33,28 +40,62 @@ def train_test_split(chip_dfs: Dict, test_size=0.2, seed=1) -> Tuple[Dict, Dict]
 def format_coco(chip_dfs: Dict, chip_width: int, chip_height: int):
     """Format train and test chip geometries to COCO json format.
 
-    COCO train and val set have specific ids.
+    Args:
+        chip_dfs: Dictionary containing key (filename of the chip) value (dataframe with
+            geometries for that chip) pairs.
+        chip_width: width of the chip in pixel size.
+        chip_height: height of the chip in pixel size.
+
+    COCOjson example structure and instructions below. For more detailed information on building a COCO
+        dataset see http://www.immersivelimit.com/tutorials/create-coco-annotations-from-scratch
+
+    cocojson = {
+        "info": {...},
+        "licenses": [...],
+        "categories": [{"supercategory": "person","id": 1,"name": "person"},
+                       {"supercategory": "vehicle","id": 2,"name": "bicycle"},
+                       ...],
+        "images":  [{"file_name": "000000289343.jpg", "height": 427, "width": 640, "id": 397133},
+                    {"file_name": "000000037777.jpg", "height": 230, "width": 352, "id": 37777},
+                    ...],
+        "annotations": [{"segmentation": [[510.66,423.01,...,510.45,423.01]], "area": 702.10, "iscrowd": 0,
+                         "image_id": 289343, "bbox": [473.07,395.93,38.65,28.67], "category_id": 18, "id": 1768},
+                        {"segmentation": [[340.32,758.01,...,134.25,875.01]], "area": 342.08, "iscrowd": 0,
+                         "image_id": 289343, "bbox": [473.07,395.93,38.65,28.67], "category_id": 18, "id": 1768},
+                         ...]
+        }
+
+    - "id" in "categories" has to match "category_id" in "annotations".
+    - "id" in "images" has to match "image_id" in "annotations".
+    - "segmentation" in "annotations" is encoded in Run-Length-Encoding (except for crowd region (iscrowd=1)).
+    - "id" in "annotations has to be unique for each geometry, so 4370 geometries in 1000 chips > 4370 unique
+       geometry ids. However, does not have to be unique between coco train and validation set.
+    - "file_name" in "images" does officially not have to match the "image_id" in "annotations" but is strongly
+       recommended.
     """
     cocojson = {
         "info": {},
         "licenses": [],
         'categories': [{'supercategory': 'AgriculturalFields',
-                        'id': 1,   # id needs to match category_id.
+                        'id': 1,  # needs to match category_id.
                         'name': 'agfields_singleclass'}]}
 
-    for key_idx, key in enumerate(chip_dfs.keys()):
-        if 'train' in key:
-            chip_id = int(key[21:])
-        elif 'val' in key:
-            chip_id = int(key[19:])
+    annotation_id = 1
 
-        key_image = ({"file_name": f'{key}.jpg',
-                      "id": int(chip_id),
-                      "height": chip_width,
-                      "width": chip_height})
-        cocojson.setdefault('images', []).append(key_image)
+    for chip_name in chip_dfs.keys():
 
-        for row_idx, row in chip_dfs[key]['chip_df'].iterrows():
+        if 'train' in chip_name:
+            chip_id = int(chip_name[21:])
+        elif 'val' in chip_name:
+            chip_id = int(chip_name[19:])
+
+        image = {"file_name": f'{chip_name}.jpg',
+                  "id": int(chip_id),
+                  "height": chip_width,
+                  "width": chip_height}
+        cocojson.setdefault('images', []).append(image)
+
+        for _, row in chip_dfs[chip_name]['chip_df'].iterrows():
             # Convert geometry to COCO segmentation format:
             # From shapely POLYGON ((x y, x1 y2, ..)) to COCO [[x, y, x1, y1, ..]].
             # The annotations were encoded by RLE, except for crowd region (iscrowd=1)
@@ -65,17 +106,19 @@ def format_coco(chip_dfs: Dict, chip_width: int, chip_height: int):
             coco_bbox = [bounds[0], bounds[1], bounds[2] - bounds[0], bounds[3] - bounds[1]]
             coco_bbox = [round(coords, 2) for coords in coco_bbox]
 
-            key_annotation = {"id": key_idx,
-                              "image_id": int(chip_id),
-                              "category_id": 1,  # with multiple classes use "category_id" : row.reclass_id
-                              "mycategory_name": 'agfields_singleclass',
-                              "old_multiclass_category_name": row['r_lc_name'],
-                              "old_multiclass_category_id": row['r_lc_id'],
-                              "bbox": coco_bbox,
-                              "area": row.geometry.area,
-                              "iscrowd": 0,
-                              "segmentation": [coco_xy]}
-            cocojson.setdefault('annotations', []).append(key_annotation)
+            annotation = {"id": annotation_id,
+                           "image_id": int(chip_id),
+                           "category_id": 1,  # with multiple classes use "category_id" : row.reclass_id
+                           "mycategory_name": 'agfields_singleclass',
+                           "old_multiclass_category_name": row['r_lc_name'],
+                           "old_multiclass_category_id": row['r_lc_id'],
+                           "bbox": coco_bbox,
+                           "area": row.geometry.area,
+                           "iscrowd": 0,
+                           "segmentation": [coco_xy]}
+            cocojson.setdefault('annotations', []).append(annotation)
+
+            annotation_id += 1
 
     return cocojson
 
@@ -94,7 +137,7 @@ def move_coco_val_images(inpath_train_folder, val_chips_list):
 
 
 def coco_to_shapely(inpath_json: Union[Path, str],
-                    categories: List[int]=None) -> Dict:
+                    categories: List[int] = None) -> Dict:
     """Transforms COCO annotations to shapely geometry format.
 
     Args:
