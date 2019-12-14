@@ -54,9 +54,9 @@ dataset:
   NUM_CLASSES: 81
   dataset: coco
   dataset_path: "./data/coco"
-  image_set: train2014 # train2014+valminusminival2014
+  image_set: train2016 # train2014+valminusminival2014
   root_path: "./data"
-  test_image_set: val2014 #test-dev2015
+  test_image_set: val2016 #test-dev2015
   proposal: rpn
 TRAIN:
   lr: 0.0005
@@ -139,7 +139,7 @@ TRAIN:
   - 10.0
   - 1.0
   CONVNEW3: true
-TEST:s
+TEST:
   # use rpn to generate proposal
   HAS_RPN: true
   # size of images for each device
